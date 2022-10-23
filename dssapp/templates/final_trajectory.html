@@ -1,0 +1,19 @@
+{% extends 'base.html' %}
+
+{% load crispy_forms_tags %}
+
+{% block content %}
+    {% for key, trajectory in best_trajectories.items %}
+    <h5>Лучшая траектория по критерию {{key}}:</h5>
+    <div class="font-weight-bold">Траектория {{trajectory.idx}}</div>
+        {% for questiond_idx, answers in trajectory.data.items %}
+            {{answers}}<br>
+        {% endfor %}
+        <br>
+    {% endfor %}
+    <br>
+    <a class="btn btn-primary" href="/">Вернуться на главную</a>
+    <br>
+    <br>
+    <br>
+{% endblock %}

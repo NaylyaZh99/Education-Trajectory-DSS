@@ -1,0 +1,65 @@
+{% extends 'base.html' %}
+
+{% load crispy_forms_tags %}
+
+{% load dssapp_extras %}
+
+{% block content %}
+    {% for key, trajectory in trajectories.items %}
+        <div class="font-weight-bold">Траектория {{key}}</div>
+        {% for questiond_idx, answers in trajectory.items %}
+            {{answers}}<br>
+        {% endfor %}
+        <br>
+    {% endfor %}
+    <br>
+    <form method="post" action="">
+        {{ formset.management_form }}
+        {% csrf_token %}
+        {% for form in formset %}
+            {% if forloop.counter0 == 0 %}
+                <h4>Оцените критерии:</h4>
+                {% for criterion in criteria %}
+                    Критерий {{forloop.counter}}: {{criterion}}<br>
+                {% endfor %}
+                <br>
+            {% endif %}
+            {% if forloop.counter0 < criteria_forms_num %}
+                {% with form_details=forms_context|seq_index:forloop.counter0 %}
+                    Критерий {{form_details.combs.0}} {{form.assessment_field}} критерия {{form_details.combs.1}}<br>
+                {% endwith %}
+            {% endif %}
+            {% if forloop.counter0 >= criteria_forms_num %}
+                {% with form_details=forms_context|seq_index:forloop.counter0 %}
+                    {% if form_details.print_ext_param %}
+                        <br><h4>Рассмотрим внешний параметр {{form_details.ext_param}}</h4>
+                    {% endif %}
+                    {% if form_details.print_criterion %}
+                        {% if not form_details.print_ext_param %}
+                            <br>
+                        {% endif %}
+                        <div class="font-weight-bold">Рассмотрим критерий {{form_details.criterion}}</div>
+                    {% endif %}
+                    Траектория {{form_details.combs.0}} {{form.assessment_field}} траектории {{form_details.combs.1}}<br>
+                {% endwith %}
+            {% endif %}
+        {% endfor %}
+        <br>
+        <input class="btn btn-success" type="submit" value="Подтвердить">
+    </form>
+    
+    <!-- <form method="post" action="">
+        {{ formset.management_form }}
+        {% csrf_token %}
+        {% for form in formset %}
+            {{ form }}
+        {% endfor %}
+        <input type="submit" value="Подтвердить">
+    </form> -->
+    <br>
+    <br>
+    <a class="btn btn-primary" href="/">Вернуться на главную</a>
+    <br>
+    <br>
+    <br>
+{% endblock %}

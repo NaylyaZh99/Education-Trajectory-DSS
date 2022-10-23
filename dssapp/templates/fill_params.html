@@ -1,0 +1,25 @@
+{% extends 'base.html' %}
+
+{% load crispy_forms_tags %}
+
+{% block content %}
+    {% for key, trajectory in trajectories.items %}
+        <div class="font-weight-bold">Траектория {{key}}</div> 
+        {% for questiond_idx, answers in trajectory.items %}
+            {{answers}}<br>
+        {% endfor %}
+        <br>
+    {% endfor %}
+    <br>
+    <form method="post" action="">
+        {% csrf_token %}
+        {{ form|crispy }}
+        <input class="btn btn-success" type="submit" value="Подтвердить">
+    </form>
+    <br>
+    <br>
+    <a class="btn btn-primary" href="/">Вернуться на главную</a>
+    <br>
+    <br>
+    <br>
+{% endblock %}
