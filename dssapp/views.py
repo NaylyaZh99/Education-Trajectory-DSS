@@ -18,7 +18,8 @@ def upload_file(request):
     if request.method == 'POST':
         form = UploadFileForm(request.POST, request.FILES)
         if form.is_valid():
-            df = pd.read_excel(request.FILES['file'].temporary_file_path(), header=[0,1])
+            # df = pd.read_excel(request.FILES['file'].temporary_file_path(), header=[0,1])
+            df = form.cleaned_data['file']
             trajectories = clusterization(df)
             new_trajectories = {}
             for key, trajectory in trajectories.items():
@@ -179,11 +180,11 @@ def result_trajectory(request):
     trajectories = request.session['trajectories']
     payoff_matrix = np.array(request.session['payoff_matrix'])
     payoff_criteria = {
-        'Лапласа': laplace,
-        'Вальда': wald,
-        'оптимизма': optimist,
-        'устойчивости Гурвица': hurwitz,
-        'Сэвиджа': savage,
+        'Лапласа (максимальный средний выигрыш)': laplace,
+        'Вальда (максимальный минимальный выигрыш)': wald,
+        'оптимизма (максимальный наибольший выигрыш)': optimist,
+        'Гурвица (обобщенный критерий)': hurwitz,
+        'Сэвиджа (минимальный наибольший недополученный выигрыш)': savage,
     }
     best_trajectories = {}
     for key, value in payoff_criteria.items():

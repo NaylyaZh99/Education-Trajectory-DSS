@@ -1,12 +1,34 @@
 from django import forms
+import pandas as pd
+from django.core.exceptions import ValidationError
+import re
 
 class UploadFileForm(forms.Form):
     file = forms.FileField(label="Загрузите файл с данными опроса студентов:", required=True)
 
+    def clean_file(self):
+        try:
+            df = pd.read_excel(self.cleaned_data['file'].temporary_file_path(), header=[0,1])
+        except:
+            raise ValidationError("Требуемый формат файла .xlsx")
+        return df
+
 
 class ParamsCriteriaForm(forms.Form):
-    ext_params = forms.CharField(label='Перечислите внешние параметры через запятую', max_length=250)
-    criteria = forms.CharField(label='Перечислите критерии через запятую', max_length=250)
+    ext_params = forms.CharField(label='Перечислите параметры внешней среды через запятую', max_length=250)
+    criteria = forms.CharField(label='Перечислите критерии оценки траекторий через запятую', max_length=250)
+
+    def clean_ext_params(self):
+        text = self.cleaned_data['ext_params']
+        text = text.replace(',', ', ')
+        text = re.sub(' +', ' ', text)
+        return text
+
+    def clean_criteria(self):
+        text = self.cleaned_data['criteria']
+        text = text.replace(',', ', ')
+        text = re.sub(' +', ' ', text)
+        return text
 
 
 class ParamAssessmentForm(forms.Form):

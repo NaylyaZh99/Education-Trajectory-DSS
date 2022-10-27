@@ -18,7 +18,7 @@
         {% csrf_token %}
         {% for form in formset %}
             {% if forloop.counter0 == 0 %}
-                <h4>Оцените критерии:</h4>
+                <h4>Сравните критерии оценки траекторий:</h4>
                 {% for criterion in criteria %}
                     Критерий {{forloop.counter}}: {{criterion}}<br>
                 {% endfor %}
