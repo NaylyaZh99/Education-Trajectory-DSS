@@ -1,15 +1,20 @@
 {% extends 'base.html' %}
 
-{% load crispy_forms_tags %}
 
 {% block content %}
     {% for key, trajectory in best_trajectories.items %}
-    <h5>Лучшая траектория по критерию {{key}}:</h5>
-    <div class="font-weight-bold">Траектория {{trajectory.idx}}</div>
-        {% for questiond_idx, answers in trajectory.data.items %}
-            {{answers}}<br>
-        {% endfor %}
-        <br>
+    <h5>Лучшая траектория по критерию {{key}}: Траектория {{trajectory.idx}}</h5>
+    <table border="1">
+        <tbody>
+            {% for question, ans in trajectory.data.items %}
+            <tr>
+                <th style="text-align: left; padding: 5px;">{{ question }}</th>
+                <td style="text-align: left; padding: 5px;">{{ ans }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    <br>
     {% endfor %}
     <br>
     <a class="btn btn-primary" href="/">Вернуться на главную</a>

@@ -7,6 +7,23 @@
   <form enctype="multipart/form-data" method="post" action="">
     {% csrf_token %}
     {{ form|crispy }}
+    <script>
+      var checkbox = document.querySelector('#id_auto_clusters_num');
+      var integerField = document.querySelector('#id_clusters_num');
+      checkbox.addEventListener('change', function() {
+          if (this.checked) {
+              integerField.value = '';
+              integerField.disabled = true;
+          } else {
+              integerField.disabled = false;
+          }
+      });
+  </script>
+  <style>
+    #id_my_integer_field[disabled] {
+        background-color: #eee;
+    }
+  </style>
     <input class="btn btn-success" type="submit" value="Определить траектории">
 </form>
 {% endblock %}

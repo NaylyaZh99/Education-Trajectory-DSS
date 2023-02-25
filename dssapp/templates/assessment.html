@@ -5,13 +5,31 @@
 {% load dssapp_extras %}
 
 {% block content %}
-    {% for key, trajectory in trajectories.items %}
-        <div class="font-weight-bold">Траектория {{key}}</div>
-        {% for questiond_idx, answers in trajectory.items %}
-            {{answers}}<br>
+    <h4>Вычисленные кластеризацией образовательные траектории:</h4>
+    <table border="1">
+        <thead>
+            <tr>
+                <th></th>
+                {% for key, val in trajectories_for_table.items %}
+                    <th style="text-align: center; padding: 5px;">Траектория {{ key }}</th>
+                {% endfor %}
+            </tr>
+        </thead>
+        <tbody>
+        {% for question in questions %}
+            <tr>
+                <th style="text-align: center; padding: 5px;">{{ question }}</th>
+                {% for trajectory_id, trajectory in trajectories_for_table.items %}
+                    {% for trajectory_question, answer in trajectory.items %}
+                        {% if question == trajectory_question %}
+                            <td style="text-align: center; padding: 5px;">{{ answer }}</td>
+                        {% endif %}
+                    {% endfor %}
+                {% endfor %}
+            </tr>
         {% endfor %}
-        <br>
-    {% endfor %}
+        </tbody>
+    </table>
     <br>
     <form method="post" action="">
         {{ formset.management_form }}
@@ -32,7 +50,7 @@
             {% if forloop.counter0 >= criteria_forms_num %}
                 {% with form_details=forms_context|seq_index:forloop.counter0 %}
                     {% if form_details.print_ext_param %}
-                        <br><h4>Рассмотрим внешний параметр {{form_details.ext_param}}</h4>
+                        <br><h4>Рассмотрим внешнее состояние {{form_details.ext_param}}</h4>
                     {% endif %}
                     {% if form_details.print_criterion %}
                         {% if not form_details.print_ext_param %}

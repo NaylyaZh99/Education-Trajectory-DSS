@@ -5,6 +5,14 @@ import re
 
 class UploadFileForm(forms.Form):
     file = forms.FileField(label="Загрузите файл с данными опроса студентов:", required=True)
+    auto_clusters_num = forms.BooleanField(required=False, label='Автоматический выбор количества траекторий')
+    clusters_num = forms.IntegerField(required=False, label='Желаемое количество образовательных траекторий')
+    ext_params = forms.CharField(label='Перечислите состояния внешней среды через запятую', max_length=250)
+    criteria = forms.CharField(label='Перечислите критерии оценки траекторий через запятую', max_length=250)
+
+    def order_fields(self, field_order):
+        # Set the order of fields so that my_checkbox_field is validated first
+        return ['file', 'auto_clusters_num', 'clusters_num', 'ext_params', 'criteria']
 
     def clean_file(self):
         try:
@@ -13,9 +21,26 @@ class UploadFileForm(forms.Form):
             raise ValidationError("Требуемый формат файла .xlsx")
         return df
 
+    def clean_clusters_num(self):
+        if not self.cleaned_data['auto_clusters_num'] and not self.cleaned_data.get('clusters_num'):
+            raise forms.ValidationError("Пожалуйста либо введите количество траекторий, либо отметьте автоматический выбор")
+        return self.cleaned_data['clusters_num']
+
+    def clean_ext_params(self):
+        text = self.cleaned_data['ext_params']
+        text = text.replace(',', ', ')
+        text = re.sub(' +', ' ', text)
+        return text
+
+    def clean_criteria(self):
+        text = self.cleaned_data['criteria']
+        text = text.replace(',', ', ')
+        text = re.sub(' +', ' ', text)
+        return text
+
 
 class ParamsCriteriaForm(forms.Form):
-    ext_params = forms.CharField(label='Перечислите параметры внешней среды через запятую', max_length=250)
+    ext_params = forms.CharField(label='Перечислите состояния внешней среды через запятую', max_length=250)
     criteria = forms.CharField(label='Перечислите критерии оценки траекторий через запятую', max_length=250)
 
     def clean_ext_params(self):

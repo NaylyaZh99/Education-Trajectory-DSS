@@ -7,9 +7,10 @@ import numpy as np
 from sklearn.cluster import KMeans
 import copy
 from itertools import combinations
+from sklearn.metrics import calinski_harabasz_score, silhouette_score
 # Create your views here.
 
-clusters_number = 3 # or 'auto'
+# clusters_number = 3 # or 'auto'
 questions = ['Вид источников для самостоятельного изучения', 'Способ организации учебного процесса', \
              'Численность учебной группы', 'Технология преподнесения материалов', 'Способ проверки знаний', \
              'Темп подачи материала', 'Форма обучения']
@@ -20,17 +21,36 @@ def upload_file(request):
         if form.is_valid():
             # df = pd.read_excel(request.FILES['file'].temporary_file_path(), header=[0,1])
             df = form.cleaned_data['file']
-            trajectories = clusterization(df)
+            if form.cleaned_data['auto_clusters_num']:
+                request.session['clusters_num'] = 'auto'
+            else:
+                request.session['clusters_num'] = form.cleaned_data['clusters_num']
+            trajectories, clusters_num = clusterization(request, df)
+            request.session['clusters_num'] = str(clusters_num)
             new_trajectories = {}
+            trajectories_for_table = {}
             for key, trajectory in trajectories.items():
                 new_trajectory = {}
+                new_trajectory_for_table = {}
                 for questiond_idx, answers in trajectory.items():
                     answer = ' И/ИЛИ '.join([x[2:] for x in answers])
                     # trajectory[int(questiond_idx)] = f'- {questions[int(questiond_idx)-1]}: {answer}'
                     new_trajectory[questiond_idx] = f'- {questions[int(questiond_idx)-1]}: {answer}'
+                    new_trajectory_for_table[questions[int(questiond_idx)-1]] = answer
                 new_trajectories[key] = copy.deepcopy(new_trajectory)
+                trajectories_for_table[key] = copy.deepcopy(new_trajectory_for_table)
             request.session['trajectories'] = new_trajectories
-            return redirect('fill_params')
+            request.session['trajectories_for_table'] = trajectories_for_table
+            ext_params = form.cleaned_data['ext_params']
+            ext_params = ext_params.split(', ')
+            # print(ext_params_num, ext_params)
+            request.session['ext_params'] = ext_params
+            criteria = form.cleaned_data['criteria']
+            criteria = criteria.split(', ')
+            # print(criteria_num, criteria)
+            request.session['criteria'] = criteria
+            return redirect('assessment')
+            # return redirect('fill_params')
     else:
         form = UploadFileForm()
     return render(request, 'upload.html', {'form': form})
@@ -38,6 +58,7 @@ def upload_file(request):
 
 def fill_params(request):
     trajectories = request.session['trajectories']
+    trajectories_for_table = request.session['trajectories_for_table']
     if request.method == 'POST':
         form = ParamsCriteriaForm(request.POST)
         if form.is_valid():
@@ -52,14 +73,18 @@ def fill_params(request):
             return redirect('assessment')
     else:
         form = ParamsCriteriaForm()
-    return render(request, 'fill_params.html', {'trajectories': trajectories, 'questions': questions, 'form': form})
+    print(trajectories)
+    print(trajectories_for_table)
+    return render(request, 'fill_params.html', {'trajectories': trajectories, 'trajectories_for_table': trajectories_for_table, 'questions': questions, 'form': form})
 
 
 def assessment(request):
     trajectories = request.session['trajectories']
+    trajectories_for_table = request.session['trajectories_for_table']
     ext_params = request.session['ext_params']
     criteria = request.session['criteria']
     # print(criteria)
+    clusters_number = int(request.session['clusters_num'])
     ext_params_num = len(ext_params)
     criteria_num = len(criteria)
     clusters_forms_num = int(clusters_number * (clusters_number - 1) / 2)
@@ -149,8 +174,11 @@ def assessment(request):
                     tmp['combs'] = {'0': combs[0], '1': combs[1]}
                     forms_context.append(tmp)
                     form_counter += 1
+    print(trajectories_for_table)
     return render(request, 'assessment.html', {
         'trajectories': trajectories,
+        'trajectories_for_table': trajectories_for_table,
+        'questions': questions, 
         'criteria_forms_num': criteria_forms_num,
         'forms_context': forms_context,
         'formset': formset,
@@ -178,6 +206,7 @@ def assessment(request):
 
 def result_trajectory(request):
     trajectories = request.session['trajectories']
+    trajectories_for_table = request.session['trajectories_for_table']
     payoff_matrix = np.array(request.session['payoff_matrix'])
     payoff_criteria = {
         'Лапласа (максимальный средний выигрыш)': laplace,
@@ -187,15 +216,17 @@ def result_trajectory(request):
         'Сэвиджа (минимальный наибольший недополученный выигрыш)': savage,
     }
     best_trajectories = {}
+    # for key, value in payoff_criteria.items():
+    #     best_trajectories[key] = {'idx': value(payoff_matrix), 'data': trajectories[str(value(payoff_matrix))]}
     for key, value in payoff_criteria.items():
-        best_trajectories[key] = {'idx': value(payoff_matrix), 'data': trajectories[str(value(payoff_matrix))]}
+        best_trajectories[key] = {'idx': value(payoff_matrix), 'data': trajectories_for_table[str(value(payoff_matrix))]}
     return render(request, 'final_trajectory.html', {
         'trajectories': trajectories,
         'best_trajectories': best_trajectories,
     })
 
 
-def clusterization(df):
+def clusterization(request, df):
     new_columns = ['No', 'ID', 'User', 'IP', 'Date', 'Course', 'Group']
     question_num_set = set()
     for column_tuple in list(df.columns):
@@ -205,6 +236,38 @@ def clusterization(df):
     df.set_axis(new_columns, axis=1, inplace=True)
     df.drop(['No', 'ID', 'User', 'IP', 'Date', 'Course', 'Group'], axis=1, inplace=True)
     question_number = len(question_num_set)
+    clusters_number = request.session['clusters_num']
+
+    if clusters_number == 'auto':
+        search_range = range(2, 11)
+        report = {}
+        for k in search_range:
+            temp_dict = {}
+            kmeans = KMeans(init='k-means++',
+                            algorithm='auto',
+                            n_clusters=k,
+                            max_iter=1000,
+                        random_state=1).fit(df)
+            inertia = kmeans.inertia_
+            temp_dict['Sum of squared error'] = inertia
+            try:
+                cluster = kmeans.predict(df)
+                chs = calinski_harabasz_score(df, cluster)
+                ss = silhouette_score(df, cluster)
+                temp_dict['Calinski Harabasz Score'] = chs
+                temp_dict['Silhouette Score'] = ss
+                report[k] = temp_dict
+            except:
+                report[k] = temp_dict
+        
+        chs = [-10, -10]
+        ss = [-10, -10]
+        for i in range(2, len(report)):
+            chs.append(report[i]['Calinski Harabasz Score'])
+            ss.append(report[i]['Silhouette Score'])
+        chs = np.array(chs)
+        ss = np.array(ss)
+        clusters_number = (np.argmax(chs) + np.argmax(ss)) // 2
 
     kmeans = KMeans(init='k-means++',
                     algorithm='auto',
@@ -234,7 +297,7 @@ def clusterization(df):
                     best_names.append(key)
             trajectories[i+1][j] = best_names
 
-    return trajectories
+    return trajectories, clusters_number
 
 
 def get_weights(matrix):

@@ -3,14 +3,30 @@
 {% load crispy_forms_tags %}
 
 {% block content %}
-    {% for key, trajectory in trajectories.items %}
-        <div class="font-weight-bold">Траектория {{key}}</div> 
-        {% for questiond_idx, answers in trajectory.items %}
-            {{answers}}<br>
+    <table border="1">
+      <thead>
+        <tr>
+          <th></th>
+          {% for key, val in trajectories_for_table.items %}
+            <th style="text-align: center; padding: 5px;">Траектория {{ key }}</th>
+          {% endfor %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for question in questions %}
+          <tr>
+            <th style="text-align: center; padding: 5px;">{{ question }}</th>
+            {% for trajectory_id, trajectory in trajectories_for_table.items %}
+              {% for trajectory_question, answer in trajectory.items %}
+                {% if question == trajectory_question %}
+                  <td style="text-align: center; padding: 5px;">{{ answer }}</td>
+                {% endif %}
+              {% endfor %}
+            {% endfor %}
+          </tr>
         {% endfor %}
-        <br>
-    {% endfor %}
-    <br>
+      </tbody>
+    </table>
     <form method="post" action="">
         {% csrf_token %}
         {{ form|crispy }}
