@@ -209,11 +209,11 @@ def result_trajectory(request):
     trajectories_for_table = request.session['trajectories_for_table']
     payoff_matrix = np.array(request.session['payoff_matrix'])
     payoff_criteria = {
-        'Лапласа (максимальный средний выигрыш)': laplace,
-        'Вальда (максимальный минимальный выигрыш)': wald,
-        'оптимизма (максимальный наибольший выигрыш)': optimist,
-        'Гурвица (оптимизма-пессимизма, без ярко выраженного уклона )': hurwitz,
-        'Сэвиджа (минимальный наибольший недополученный выигрыш)': savage,
+        'Лапласа': laplace,
+        'Вальда': wald,
+        'оптимизма': optimist,
+        'Гурвица': hurwitz,
+        'Сэвиджа': savage,
     }
     best_trajectories = {}
     # for key, value in payoff_criteria.items():

@@ -1,0 +1,20 @@
+.collapsible {
+    display: inline-block;
+    color: blue;
+    background: none;
+    border: none;
+    padding: 0;
+    font: inherit;
+    cursor: pointer;
+    text-decoration: underline;
+}
+
+.active, .collapsible:hover {
+    display: inline-block;
+    color: darkblue;
+}
+
+/* Hide the table by default */
+table {
+    display: none;
+}
