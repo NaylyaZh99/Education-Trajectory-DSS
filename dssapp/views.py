@@ -20,6 +20,18 @@ def upload_file(request):
         form = UploadFileForm(request.POST, request.FILES)
         if form.is_valid():
             # df = pd.read_excel(request.FILES['file'].temporary_file_path(), header=[0,1])
+            ext_param_fields = [value for key, value in request.POST.items() if key.startswith('ext_param_field')]
+            probs_fields = [float(value) for key, value in request.POST.items() if key.startswith('prob_field')]
+            disable_probabilities = 'disable_probabilities' in request.POST
+            criteria_fields = [value for key, value in request.POST.items() if key.startswith('criterion_field')]
+            request.session['ext_params'] = ext_param_fields
+            request.session['ext_params_probs'] = probs_fields
+            request.session['ext_params_probs_flag'] = not disable_probabilities
+            request.session['criteria'] = criteria_fields
+            print(ext_param_fields)
+            print(probs_fields)
+            print(disable_probabilities)
+            print(criteria_fields)
             df = form.cleaned_data['file']
             if form.cleaned_data['auto_clusters_num']:
                 request.session['clusters_num'] = 'auto'
@@ -41,14 +53,6 @@ def upload_file(request):
                 trajectories_for_table[key] = copy.deepcopy(new_trajectory_for_table)
             request.session['trajectories'] = new_trajectories
             request.session['trajectories_for_table'] = trajectories_for_table
-            ext_params = form.cleaned_data['ext_params']
-            ext_params = ext_params.split(', ')
-            # print(ext_params_num, ext_params)
-            request.session['ext_params'] = ext_params
-            criteria = form.cleaned_data['criteria']
-            criteria = criteria.split(', ')
-            # print(criteria_num, criteria)
-            request.session['criteria'] = criteria
             return redirect('assessment')
             # return redirect('fill_params')
     else:
@@ -207,19 +211,33 @@ def assessment(request):
 def result_trajectory(request):
     trajectories = request.session['trajectories']
     trajectories_for_table = request.session['trajectories_for_table']
+    probs_flag = request.session['ext_params_probs_flag']
+    if probs_flag:
+        probs = request.session['ext_params_probs']
+        probs = np.array(probs)
     payoff_matrix = np.array(request.session['payoff_matrix'])
     payoff_criteria = {
         'Лапласа': laplace,
         'Вальда': wald,
-        'оптимизма': optimist,
+        'крайнего оптимизма': optimist,
+        'крайнего пессимизма': pessimist,
         'Гурвица': hurwitz,
         'Сэвиджа': savage,
+        'произведений': multiplication,
+        'Байеса': bayes,
+        'Гермейера': germeier,
+        'Ходжа-Лемана': hodge_lehmann,
+        'Гермейера-Гурвица': germeier_hurwitz,
     }
+    methods_with_probs = set(['Байеса', 'Гермейера', 'Ходжа-Лемана', 'Гермейера-Гурвица'])
     best_trajectories = {}
     # for key, value in payoff_criteria.items():
     #     best_trajectories[key] = {'idx': value(payoff_matrix), 'data': trajectories[str(value(payoff_matrix))]}
     for key, value in payoff_criteria.items():
-        best_trajectories[key] = {'idx': value(payoff_matrix), 'data': trajectories_for_table[str(value(payoff_matrix))]}
+        if key in methods_with_probs and probs_flag:
+            best_trajectories[key] = {'idx': value(payoff_matrix, probs), 'data': trajectories_for_table[str(value(payoff_matrix, probs))]}
+        else:
+            best_trajectories[key] = {'idx': value(payoff_matrix), 'data': trajectories_for_table[str(value(payoff_matrix))]}
     return render(request, 'final_trajectory.html', {
         'trajectories': trajectories,
         'best_trajectories': best_trajectories,
@@ -354,6 +372,21 @@ def optimist(matrix):
     return best_path + 1
 
 
+def pessimist(matrix):
+    '''
+    Критерий пессимизма. Находит минимум минимумов по строкам и возвращает индекс соответствующей строки.
+
+            Parameters:
+                    matrix: платежная матрица с коэффициентами
+
+            Returns:
+                    best_path: индекс выбранной строки
+    '''
+    best_path = np.argmin(matrix.min(axis=1))
+    return best_path + 1
+
+
+
 def hurwitz(matrix, alpha=0.5):
     '''
     Критерий Вальда. Находит максимум минимумов по строкам и возвращает индекс соответствующей строки.
@@ -368,7 +401,7 @@ def hurwitz(matrix, alpha=0.5):
     '''
     maxs = matrix.max(axis=1)
     mins = matrix.min(axis=1)
-    best_path = np.argmax(alpha*maxs + (1-alpha))
+    best_path = np.argmax(alpha*maxs + (1-alpha)*mins)
     return best_path + 1
 
 
@@ -384,4 +417,80 @@ def savage(matrix):
     '''
     loss_matrix = matrix.max(axis=0) - matrix
     best_path = np.argmin(loss_matrix.max(axis=1))
+    return best_path + 1
+
+
+def multiplication(matrix):
+    '''
+    Критерий произведений. Находит максимум произведений по строкам и возвращает индекс соответствующей строки.
+
+            Parameters:
+                    matrix: платежная матрица с коэффициентами
+
+            Returns:
+                    best_path: индекс выбранной строки
+    '''
+    best_path = np.argmax(np.prod(matrix, axis=1))
+    return best_path + 1
+
+def bayes(matrix, probs): ### Можно использовать, если есть веса внешних состояний
+    '''
+    Критерий Байеса или среднего выигрыша. Находит максимум взвешенных сумм коэффициентов и возвращает индекс соответствующей строки.
+
+            Parameters:
+                    matrix: платежная матрица с коэффициентами
+                    probs: массив с весами внешних состояний
+
+            Returns:
+                    best_path: индекс выбранной строки
+    '''
+    best_path = np.argmax((matrix * probs).sum(axis=1))
+    return best_path + 1
+
+def germeier(matrix, probs): ### Можно использовать, если есть веса внешних состояний
+    '''
+    Критерий Гермейера.
+
+            Parameters:
+                    matrix: платежная матрица с коэффициентами
+                    probs: массив с весами внешних состояний
+
+            Returns:
+                    best_path: индекс выбранной строки
+    '''
+    best_path = np.argmax((matrix * probs).min(axis=1))
+    return best_path + 1
+
+def hodge_lehmann(matrix, probs, alpha=0.5): ### Можно использовать, если есть веса внешних состояний
+    '''
+    Критерий Ходжа-Лемана.
+
+            Parameters:
+                    matrix: платежная матрица с коэффициентами
+                    probs: массив с весами внешних состояний
+                    alpha: Коэффициент α принимает значения от 0 до 1. Если α стремится к 1, то критерий Ходжа-Лемана приближается к критерию Байеса,
+                                а при α стремящемуся к 0, то критерий Ходжа-Лемана приближается к критерию Вальда. По умолчанию равен 0.5
+
+            Returns:
+                    best_path: индекс выбранной строки
+    '''
+
+    best_path = np.argmax(alpha * (matrix * probs).sum(axis=1) + (1-alpha) * matrix.min(axis=1))
+    return best_path + 1
+
+def germeier_hurwitz(matrix, probs, alpha=0.5): ### Можно использовать, если есть веса внешних состояний
+    '''
+    Критерий Гермейера-Гурвица.
+
+            Parameters:
+                    matrix: платежная матрица с коэффициентами
+                    probs: массив с весами внешних состояний
+                    alpha: Коэффициент α принимает значения от 0 до 1. По умолчанию равен 0.5
+
+            Returns:
+                    best_path: индекс выбранной строки
+    '''
+
+    matrix_with_probs = matrix * probs
+    best_path = np.argmax(alpha * matrix_with_probs.max(axis=1) + (1-alpha) * matrix_with_probs.min(axis=1))
     return best_path + 1

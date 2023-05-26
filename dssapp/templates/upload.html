@@ -7,23 +7,110 @@
   <form enctype="multipart/form-data" method="post" action="">
     {% csrf_token %}
     {{ form|crispy }}
-    <script>
-      var checkbox = document.querySelector('#id_auto_clusters_num');
-      var integerField = document.querySelector('#id_clusters_num');
-      checkbox.addEventListener('change', function() {
-          if (this.checked) {
-              integerField.value = '';
-              integerField.disabled = true;
-          } else {
-              integerField.disabled = false;
-          }
-      });
+    Введите возможные состояния внешней среды и вероятности их наступления (при наличии):
+    <br>
+    <input type="checkbox" id="disable-probabilities-checkbox" name="disable_probabilities">
+    <label for="disable-probabilities-checkbox">Без вероятностей</label>
+    <div id="dynamic-form-fields-ext-params">
+      <!-- Dynamic form fields for ext params will go here -->
+      <div class="form-field-row">
+        <div class="form-group d-flex align-items-center form-field-row">
+          <input type="text" class="form-control mr-2 wide-field1" name="ext_param_field_0">
+          <input type="number" step="0.01" class="form-control mr-2 narrow-field" name="prob_field_0">
+          <button type="button" class="btn btn-primary add-button">+</button>
+        </div>
+      </div>
+  </div>
+  
+  Введите критерии оценки образовательных траекторий:
+
+  <br>
+  <div id="dynamic-form-fields-criteria">
+      <!-- Dynamic form fields for criteria will go here -->
+      <div class="form-field-row">
+        <div class="form-group d-flex align-items-center form-field-row">
+          <input type="text" class="form-control mr-2 wide-field2" name="criterion_field_0">
+          <button type="button" class="btn btn-primary add-button">+</button>
+        </div>
+      </div>
+  </div>
+  <br>
+  <input class="btn btn-success" type="submit" value="Определить траектории">
+  </form>
+  <script>
+    var checkbox = document.querySelector('#id_auto_clusters_num');
+    var integerField = document.querySelector('#id_clusters_num');
+    checkbox.addEventListener('change', function() {
+        if (this.checked) {
+            integerField.value = '';
+            integerField.disabled = true;
+        } else {
+            integerField.disabled = false;
+        }
+    });
+    document.addEventListener('DOMContentLoaded', function() {
+    var extParamsFormFieldIndex = 0;
+    var criteriaFormFieldIndex = 0;
+
+    document.querySelector('#dynamic-form-fields-ext-params').addEventListener('click', function(e) {
+        if (e.target.classList.contains('add-button')) {
+            extParamsFormFieldIndex++;
+            var newRow = document.createElement('div');
+            newRow.classList.add('form-group', 'd-flex', 'align-items-center', 'form-field-row');
+            newRow.innerHTML = `<input type="text" class="form-control mr-2 wide-field1" name="ext_param_field_${extParamsFormFieldIndex}">
+                                <input type="number" step="0.01" class="form-control mr-2 narrow-field" name="prob_field_${extParamsFormFieldIndex}">
+                                <button type="button" class="btn btn-primary mr-2 add-button">+</button>
+                                <button type="button" class="btn btn-danger remove-button">🗑</button>`;
+            document.querySelector('#dynamic-form-fields-ext-params').appendChild(newRow);
+        }
+        else if (e.target.classList.contains('remove-button')) {
+            e.target.parentElement.remove();
+        }
+    });
+
+    document.querySelector('#disable-probabilities-checkbox').addEventListener('change', function() {
+        console.log('Checkbox state changed to: ' + this.checked);
+        var floatFields = document.querySelectorAll('#dynamic-form-fields-ext-params input[type="number"]');
+        var isChecked = this.checked;
+        floatFields.forEach(function(floatField) {
+            floatField.disabled = isChecked;
+        });
+    });
+
+    document.querySelector('#dynamic-form-fields-criteria').addEventListener('click', function(e) {
+        if (e.target.classList.contains('add-button')) {
+            criteriaFormFieldIndex++;
+            var newRow = document.createElement('div');
+            newRow.classList.add('form-group', 'd-flex', 'align-items-center', 'form-field-row');
+            newRow.innerHTML = `<input type="text" class="form-control mr-2 wide-field2" name="criterion_field_${criteriaFormFieldIndex}">
+                                <button type="button" class="btn btn-primary mr-2 add-button">+</button>
+                                <button type="button" class="btn btn-danger remove-button">🗑</button>`;
+            document.querySelector('#dynamic-form-fields-criteria').appendChild(newRow);
+        }
+        else if (e.target.classList.contains('remove-button')) {
+            e.target.parentElement.remove();
+        }
+    });
+});
   </script>
   <style>
     #id_my_integer_field[disabled] {
         background-color: #eee;
     }
+    .wide-field {
+        width: 80%;
+    }
+    .wide-field1 {
+        width: 80%;
+    }
+    .wide-field2 {
+        width: 91%;
+    }
+    .narrow-field {
+        width: 10%;
+    }
+    .numberinput {
+        width: 91%;
+    }
   </style>
-    <input class="btn btn-success" type="submit" value="Определить траектории">
-</form>
 {% endblock %}
