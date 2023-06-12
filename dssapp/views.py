@@ -1,6 +1,6 @@
 from django.shortcuts import render, redirect
 from django.http import HttpResponseRedirect
-from .forms import UploadFileForm, ParamsCriteriaForm, ParamAssessmentForm
+from .forms import UploadFileFormRu, UploadFileFormEn, ParamAssessmentFormRu, ParamAssessmentFormEn
 from django.forms import formset_factory
 import pandas as pd
 import numpy as np
@@ -8,16 +8,25 @@ from sklearn.cluster import KMeans
 import copy
 from itertools import combinations
 from sklearn.metrics import calinski_harabasz_score, silhouette_score
+from django.utils import translation
 # Create your views here.
 
 # clusters_number = 3 # or 'auto'
-questions = ['Вид источников для самостоятельного изучения', 'Способ организации учебного процесса', \
+questions_ru = ['Вид источников для самостоятельного изучения', 'Способ организации учебного процесса', \
              'Численность учебной группы', 'Технология преподнесения материалов', 'Способ проверки знаний', \
              'Темп подачи материала', 'Форма обучения']
 
+questions_en = ['Course materials reception method', 'Types of classes', \
+             'Number of students in the study group', 'The way the learner perceives the learning material', 'Arranging knowledge control', \
+             'Training speed', 'The sequence of subjects and the number of simultaneously studied subjects']
+
 def upload_file(request):
+    lang = translation.get_language()
     if request.method == 'POST':
-        form = UploadFileForm(request.POST, request.FILES)
+        if lang == "ru":
+            form = UploadFileFormRu(request.POST, request.FILES)
+        elif lang == "en":
+            form = UploadFileFormEn(request.POST, request.FILES)
         if form.is_valid():
             # df = pd.read_excel(request.FILES['file'].temporary_file_path(), header=[0,1])
             ext_param_fields = [value for key, value in request.POST.items() if key.startswith('ext_param_field')]
@@ -28,10 +37,10 @@ def upload_file(request):
             request.session['ext_params_probs'] = probs_fields
             request.session['ext_params_probs_flag'] = not disable_probabilities
             request.session['criteria'] = criteria_fields
-            print(ext_param_fields)
-            print(probs_fields)
-            print(disable_probabilities)
-            print(criteria_fields)
+            # print(ext_param_fields)
+            # print(probs_fields)
+            # print(disable_probabilities)
+            # print(criteria_fields)
             df = form.cleaned_data['file']
             if form.cleaned_data['auto_clusters_num']:
                 request.session['clusters_num'] = 'auto'
@@ -45,10 +54,15 @@ def upload_file(request):
                 new_trajectory = {}
                 new_trajectory_for_table = {}
                 for questiond_idx, answers in trajectory.items():
-                    answer = ' И/ИЛИ '.join([x[2:] for x in answers])
                     # trajectory[int(questiond_idx)] = f'- {questions[int(questiond_idx)-1]}: {answer}'
-                    new_trajectory[questiond_idx] = f'- {questions[int(questiond_idx)-1]}: {answer}'
-                    new_trajectory_for_table[questions[int(questiond_idx)-1]] = answer
+                    if lang == "ru":
+                        answer = ' И/ИЛИ '.join([x[2:] for x in answers])
+                        new_trajectory[questiond_idx] = f'- {questions_ru[int(questiond_idx)-1]}: {answer}'
+                        new_trajectory_for_table[questions_ru[int(questiond_idx)-1]] = answer
+                    elif lang == "en":
+                        answer = ' AND/OR '.join([x[2:] for x in answers])
+                        new_trajectory[questiond_idx] = f'- {questions_en[int(questiond_idx)-1]}: {answer}'
+                        new_trajectory_for_table[questions_en[int(questiond_idx)-1]] = answer
                 new_trajectories[key] = copy.deepcopy(new_trajectory)
                 trajectories_for_table[key] = copy.deepcopy(new_trajectory_for_table)
             request.session['trajectories'] = new_trajectories
@@ -56,33 +70,46 @@ def upload_file(request):
             return redirect('assessment')
             # return redirect('fill_params')
     else:
-        form = UploadFileForm()
-    return render(request, 'upload.html', {'form': form})
+        if lang == "ru":
+            form = UploadFileFormRu()
+        elif lang == "en":
+            form = UploadFileFormEn()
+    if lang == "ru":
+        return render(request, 'ru/upload.html', {'form': form})
+    elif lang == "en":
+        return render(request, 'en/upload.html', {'form': form})
 
 
-def fill_params(request):
-    trajectories = request.session['trajectories']
-    trajectories_for_table = request.session['trajectories_for_table']
-    if request.method == 'POST':
-        form = ParamsCriteriaForm(request.POST)
-        if form.is_valid():
-            ext_params = form.cleaned_data['ext_params']
-            ext_params = ext_params.split(', ')
-            # print(ext_params_num, ext_params)
-            request.session['ext_params'] = ext_params
-            criteria = form.cleaned_data['criteria']
-            criteria = criteria.split(', ')
-            # print(criteria_num, criteria)
-            request.session['criteria'] = criteria
-            return redirect('assessment')
-    else:
-        form = ParamsCriteriaForm()
-    print(trajectories)
-    print(trajectories_for_table)
-    return render(request, 'fill_params.html', {'trajectories': trajectories, 'trajectories_for_table': trajectories_for_table, 'questions': questions, 'form': form})
+# def fill_params(request):
+#     trajectories = request.session['trajectories']
+#     trajectories_for_table = request.session['trajectories_for_table']
+#     if request.method == 'POST':
+#         form = ParamsCriteriaForm(request.POST)
+#         if form.is_valid():
+#             ext_params = form.cleaned_data['ext_params']
+#             ext_params = ext_params.split(', ')
+#             # print(ext_params_num, ext_params)
+#             request.session['ext_params'] = ext_params
+#             criteria = form.cleaned_data['criteria']
+#             criteria = criteria.split(', ')
+#             # print(criteria_num, criteria)
+#             request.session['criteria'] = criteria
+#             return redirect('assessment')
+#     else:
+#         form = ParamsCriteriaForm()
+#     print(trajectories)
+#     print(trajectories_for_table)
+#     if lang == "ru":
+#         new_trajectory[questiond_idx] = f'- {questions_ru[int(questiond_idx)-1]}: {answer}'
+#         new_trajectory_for_table[questions_ru[int(questiond_idx)-1]] = answer
+#     elif lang == "en":
+#         new_trajectory[questiond_idx] = f'- {questions_en[int(questiond_idx)-1]}: {answer}'
+#         new_trajectory_for_table[questions_en[int(questiond_idx)-1]] = answer
+#     return render(request, 'fill_params.html', {'trajectories': trajectories, 'trajectories_for_table': trajectories_for_table, 'questions': questions, 'form': form})
 
 
 def assessment(request):
+    lang = translation.get_language()
     trajectories = request.session['trajectories']
     trajectories_for_table = request.session['trajectories_for_table']
     ext_params = request.session['ext_params']
@@ -95,7 +122,10 @@ def assessment(request):
     criteria_forms_num = int(criteria_num * (criteria_num - 1) / 2)
     param_forms_num = ext_params_num * criteria_num * clusters_forms_num
     forms_num = criteria_forms_num + param_forms_num
-    ParamAssessmentSet = formset_factory(ParamAssessmentForm, extra=forms_num)
+    if lang == "ru":
+        ParamAssessmentSet = formset_factory(ParamAssessmentFormRu, extra=forms_num)
+    elif lang == "en":
+        ParamAssessmentSet = formset_factory(ParamAssessmentFormEn, extra=forms_num)
     if request.method == 'POST':
         formset = ParamAssessmentSet(request.POST, request.FILES)
         if formset.is_valid():
@@ -178,16 +208,27 @@ def assessment(request):
                     tmp['combs'] = {'0': combs[0], '1': combs[1]}
                     forms_context.append(tmp)
                     form_counter += 1
-    print(trajectories_for_table)
-    return render(request, 'assessment.html', {
-        'trajectories': trajectories,
-        'trajectories_for_table': trajectories_for_table,
-        'questions': questions, 
-        'criteria_forms_num': criteria_forms_num,
-        'forms_context': forms_context,
-        'formset': formset,
-        'criteria': criteria,
-    })
+    # print(trajectories_for_table)
+    if lang == "ru":
+        return render(request, 'ru/assessment.html', {
+            'trajectories': trajectories,
+            'trajectories_for_table': trajectories_for_table,
+            'questions': questions_ru, 
+            'criteria_forms_num': criteria_forms_num,
+            'forms_context': forms_context,
+            'formset': formset,
+            'criteria': criteria,
+        })
+    elif lang == "en":
+        return render(request, 'en/assessment.html', {
+            'trajectories': trajectories,
+            'trajectories_for_table': trajectories_for_table,
+            'questions': questions_en, 
+            'criteria_forms_num': criteria_forms_num,
+            'forms_context': forms_context,
+            'formset': formset,
+            'criteria': criteria,
+        })
 
 
 # def final_trajectory(request):
@@ -209,6 +250,7 @@ def assessment(request):
 #     })
 
 def result_trajectory(request):
+    lang = translation.get_language()
     trajectories = request.session['trajectories']
     trajectories_for_table = request.session['trajectories_for_table']
     probs_flag = request.session['ext_params_probs_flag']
@@ -216,32 +258,55 @@ def result_trajectory(request):
         probs = request.session['ext_params_probs']
         probs = np.array(probs)
     payoff_matrix = np.array(request.session['payoff_matrix'])
-    payoff_criteria = {
-        'Лапласа': laplace,
-        'Вальда': wald,
-        'крайнего оптимизма': optimist,
-        'крайнего пессимизма': pessimist,
-        'Гурвица': hurwitz,
-        'Сэвиджа': savage,
-        'произведений': multiplication,
-        'Байеса': bayes,
-        'Гермейера': germeier,
-        'Ходжа-Лемана': hodge_lehmann,
-        'Гермейера-Гурвица': germeier_hurwitz,
-    }
-    methods_with_probs = set(['Байеса', 'Гермейера', 'Ходжа-Лемана', 'Гермейера-Гурвица'])
+    if lang == "ru":
+        payoff_criteria = {
+            'Лапласа': laplace,
+            'Вальда': wald,
+            'крайнего оптимизма': optimist,
+            'крайнего пессимизма': pessimist,
+            'Гурвица': hurwitz,
+            'Сэвиджа': savage,
+            'произведений': multiplication,
+            'Байеса': bayes,
+            'Гермейера': germeier,
+            'Ходжа-Лемана': hodge_lehmann,
+            'Гермейера-Гурвица': germeier_hurwitz,
+        }
+        methods_with_probs = set(['Байеса', 'Гермейера', 'Ходжа-Лемана', 'Гермейера-Гурвица'])
+    elif lang == "en":
+        payoff_criteria = {
+            'Laplace': laplace,
+            'Wald': wald,
+            'extreme optimism': optimist,
+            'extreme pessimism': pessimist,
+            'Hurwitz': hurwitz,
+            'Savage': savage,
+            'multiplication': multiplication,
+            'Bayes': bayes,
+            'Germeier': germeier,
+            'Hodge-Lehman': hodge_lehmann,
+            'Germeier-Hurwitz': germeier_hurwitz,
+        }
+        methods_with_probs = set(['Bayes', 'Germeier', 'Hodge-Lehman', 'Germeier-Hurwitz'])
     best_trajectories = {}
     # for key, value in payoff_criteria.items():
     #     best_trajectories[key] = {'idx': value(payoff_matrix), 'data': trajectories[str(value(payoff_matrix))]}
+    # print(probs_flag)
     for key, value in payoff_criteria.items():
         if key in methods_with_probs and probs_flag:
             best_trajectories[key] = {'idx': value(payoff_matrix, probs), 'data': trajectories_for_table[str(value(payoff_matrix, probs))]}
-        else:
+        elif key not in methods_with_probs:
             best_trajectories[key] = {'idx': value(payoff_matrix), 'data': trajectories_for_table[str(value(payoff_matrix))]}
-    return render(request, 'final_trajectory.html', {
-        'trajectories': trajectories,
-        'best_trajectories': best_trajectories,
-    })
+    if lang == "ru":
+        return render(request, 'ru/final_trajectory.html', {
+            'trajectories': trajectories,
+            'best_trajectories': best_trajectories,
+        })
+    elif lang == "en":
+        return render(request, 'en/final_trajectory.html', {
+            'trajectories': trajectories,
+            'best_trajectories': best_trajectories,
+        })
 
 
 def clusterization(request, df):

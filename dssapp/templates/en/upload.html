@@ -1,5 +1,5 @@
 <!-- <form action="" method="post"> -->
-{% extends 'base.html' %}
+{% extends 'en/base.html' %}
 
 {% load crispy_forms_tags %}
 
@@ -7,10 +7,10 @@
   <form enctype="multipart/form-data" method="post" action="">
     {% csrf_token %}
     {{ form|crispy }}
-    Введите возможные состояния внешней среды и вероятности их наступления (при наличии):
+    Enter the possible states of the external environment and their probabilities of occurrence (if they exist):
     <br>
     <input type="checkbox" id="disable-probabilities-checkbox" name="disable_probabilities">
-    <label for="disable-probabilities-checkbox">Без вероятностей</label>
+    <label for="disable-probabilities-checkbox">Without probabilities</label>
     <div id="dynamic-form-fields-ext-params">
       <!-- Dynamic form fields for ext params will go here -->
       <div class="form-field-row">
@@ -22,7 +22,7 @@
       </div>
   </div>
   
-  Введите критерии оценки образовательных траекторий:
+  Enter the criteria for evaluating educational trajectories:
 
   <br>
   <div id="dynamic-form-fields-criteria">
@@ -35,7 +35,7 @@
       </div>
   </div>
   <br>
-  <input class="btn btn-success" type="submit" value="Определить траектории">
+  <input class="btn btn-success" type="submit" value="Determine trajectories">
   </form>
   <script>
     var checkbox = document.querySelector('#id_auto_clusters_num');
